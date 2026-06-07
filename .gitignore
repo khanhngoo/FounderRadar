@@ -40,12 +40,19 @@ data/interim/
 .playwright-mcp/
 playwright-report/
 test-results/
+.coverage.*
+coverage.xml
+*.log
+tmp/
+temp/
 
 # OS/editor files
 .DS_Store
 Thumbs.db
 *.swp
 *.swo
+*.bak
+*.orig
 .idea/
 .vscode/
 
