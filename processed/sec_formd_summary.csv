@@ -1,0 +1,12 @@
+issuer_type,sector_hint,filings,avg_operating_score,amendments
+Investment fund,Investment / finance,30,0.2924211289939435,21
+Investment fund,Other / unclear,11,0.34366749144823283,4
+Other private issuer,Other / unclear,9,0.32005781997084487,2
+Real estate / SPV,Energy / climate,5,0.2636854918520585,0
+Likely operating company,Other / unclear,4,0.5475079437424966,0
+Likely operating company,Health / industrial science,3,0.6981182217043834,0
+Real estate / SPV,Real estate / storage,3,0.3223182284498262,1
+Likely operating company,Technology / analytics,2,0.6963144400624754,0
+Investment fund,Technology / analytics,2,0.28218597227357745,0
+Other private issuer,Technology / analytics,2,0.27885716709122155,2
+Investment fund,Real estate / storage,1,0.32244030495469794,1
