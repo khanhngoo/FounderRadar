@@ -56,16 +56,12 @@ python -m pip install -r requirements.txt
 
 ### 3. Download Required Data
 
-```sh
-python scripts/fetch_data.py
-```
+Download the Kaggle datasets from these pages and place the extracted files into the matching local folders:
 
-The script downloads these Kaggle datasets and copies them into `data/raw/`:
-
-- `miguelcorraljr/y-combinator-directory`
-- `sashakorovkina/ycombinator-all-funded-companies-dataset`
-- `lazarun/y-combinator-jobs-enriched`
-- `justinas/startup-investments`
+- [Y Combinator Directory](https://www.kaggle.com/datasets/miguelcorraljr/y-combinator-directory) -> `data/raw/y-combinator-directory/`
+- [2024 YCombinator All Companies Dataset](https://www.kaggle.com/datasets/sashakorovkina/ycombinator-all-funded-companies-dataset) -> `data/raw/ycombinator-all-funded-companies-dataset/`
+- [Y Combinator Jobs Enriched](https://www.kaggle.com/datasets/lazarun/y-combinator-jobs-enriched) -> `data/raw/y-combinator-jobs-enriched/`
+- [Startup Investments](https://www.kaggle.com/datasets/justinas/startup-investments) -> `data/raw/startup-investments/`
 
 Expected folders after a successful download:
 
@@ -77,6 +73,12 @@ data/raw/startup-investments/
 ```
 
 If KaggleHub asks for authentication, follow Kaggle's normal API-token setup for your machine, then rerun the fetch command.
+
+If you prefer automation and already have KaggleHub configured, this project also includes a helper:
+
+```sh
+python scripts/fetch_data.py
+```
 
 ### 4. Validate the Python Files
 
@@ -111,6 +113,8 @@ http://127.0.0.1:3839/founder-radar/
 ## Data Notes
 
 FounderRadar intentionally requires local Kaggle data. It does not silently fall back to sample data, because the charts and model should reflect the real project datasets.
+
+The repository is intended to stay source-only. The downloaded Kaggle CSVs, caches, notebook artifacts, and other generated files should remain local and should not be pushed to GitHub.
 
 If required data is missing, the app shows a data-readiness notice with the command to fetch data.
 
