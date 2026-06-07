@@ -160,7 +160,6 @@ def yc_filter_bar() -> ui.Tag:
         ui.input_select("yc_region", "Region", choices(YC_COMPANIES.get("region") if YC_READY else None, 80)),
         ui.input_select("yc_status", "Status", choices(YC_COMPANIES.get("status") if YC_READY else None)),
         ui.input_select("yc_tier", "Radar tier", choices(YC_COMPANIES.get("radar_tier") if YC_READY else None)),
-        ui.input_checkbox("yc_hiring", "Hiring only", value=False),
         ui.input_text("yc_search", "Search", placeholder="Company, tag, description"),
     )
 
@@ -229,8 +228,13 @@ def yc_page_layout() -> ui.Tag:
         ),
         ui.div(
             {"class": "grid-2"},
-            ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Radar Tier Distribution"), ui.div({"class": "panel-note"}, "Shows the filtered opportunity pool by radar tier, split by hiring signal."), ui.output_ui("yc_tier_distribution")),
-            ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Founder / School Signal View"), ui.div({"class": "panel-note"}, "Company-level founder, school, and prior-company coverage by radar tier."), ui.output_ui("yc_founder_school")),
+            ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Radar Tier Distribution"), ui.div({"class": "panel-note"}, "Shows the filtered opportunity pool by radar tier."), ui.output_ui("yc_tier_distribution")),
+            ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Sector Share"), ui.div({"class": "panel-note"}, "Treemap of the top 10 sectors by company count. Placeholder and Other sectors are excluded."), ui.output_ui("yc_sector_share")),
+        ),
+        ui.div(
+            {"class": "grid-2"},
+            ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Top Founder Schools"), ui.div({"class": "panel-note"}, "Most common schools among YC founder records in the current filter."), ui.output_ui("yc_founder_schools")),
+            ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Top Prior Companies"), ui.div({"class": "panel-note"}, "Most common prior companies among YC founder records in the current filter."), ui.output_ui("yc_founder_prior_companies")),
         ),
         ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Topic Projection Map"), ui.div({"class": "panel-note"}, "Maps company descriptions, tags, and industries into thematic clusters using the pipeline's TF-IDF/PCA projection."), ui.output_ui("yc_topic_map")),
         ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Company Explorer"), ui.output_data_frame("yc_table")),
@@ -262,7 +266,7 @@ def startup_page_layout() -> ui.Tag:
         ui.div(
             {"class": "grid-2"},
             ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Founder Signal Summary"), ui.div({"class": "panel-note"}, "Filtered team structure, education coverage, and funding maturity on one outcome scale."), ui.output_ui("si_founder_summary")),
-            ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Sector Risk / Reward"), ui.div({"class": "panel-note"}, "Filtered sector scale vs exit rate, sized by median funding."), ui.output_ui("si_sector")),
+            ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Sector Risk / Reward"), ui.div({"class": "panel-note"}, "Filtered sector scale vs exit rate, sized by median funding."), ui.output_ui("si_sector_chart")),
         ),
         ui.div({"class": "panel"}, ui.div({"class": "panel-title"}, "Geography Ecosystem View"), ui.div({"class": "panel-note"}, "Filtered country scale vs exit rate, sized by median funding."), ui.output_ui("si_geo")),
     )
@@ -345,7 +349,7 @@ app_ui = ui.page_fluid(
             .eyebrow { color:var(--muted); font-size:12px; font-weight:850; letter-spacing:.08em; text-transform:uppercase; }
             h1 { font-size:34px; line-height:1.08; margin:3px 0 4px; letter-spacing:0; }
             .lede { max-width:860px; color:#475467; font-size:14px; line-height:1.5; }
-            .filter-bar { display:grid; grid-template-columns:repeat(7, minmax(130px, 1fr)); gap:10px; align-items:end; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:14px; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+            .filter-bar { display:grid; grid-template-columns:repeat(6, minmax(130px, 1fr)); gap:10px; align-items:end; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:14px; box-shadow:0 1px 2px rgba(16,24,40,.04); }
             .startup-filter { grid-template-columns:1fr 1fr 1.2fr 1.5fr; }
             .filter-bar label, .predictor-grid label { color:var(--muted); font-size:11px; font-weight:850; letter-spacing:.04em; text-transform:uppercase; }
             .filter-bar .form-select, .filter-bar .form-control, .predictor-grid .form-select, .predictor-grid .form-control { border-radius:6px; border:1px solid var(--line); min-height:36px; }
@@ -453,28 +457,88 @@ def grouped_startup_summary(df: pd.DataFrame, group_col: str, min_rows: int = 3)
     return out
 
 
-def yc_founder_signals(companies: pd.DataFrame) -> pd.DataFrame:
+def startup_signal_rows(df: pd.DataFrame) -> pd.DataFrame:
+    cols = ["dimension", "segment", "exit_probability_pct", "success_exit", "funding_total_usd", "founder_count"]
+    if df.empty or "predicted_exit_probability" not in df:
+        return pd.DataFrame(columns=cols)
+    signal_df = df.copy()
+    signal_df["team_structure"] = np.select(
+        [signal_df["founder_count"] >= 3, signal_df["founder_count"] == 2, signal_df["founder_count"] == 1],
+        ["3+ known founders", "2 known founders", "1 known founder"],
+        default="No known founder record",
+    )
+    signal_df["education_coverage"] = np.select(
+        [signal_df["founders_with_elite_school"] > 0, signal_df["founders_with_degree"] > 0],
+        ["At least one elite-school record", "At least one degree record"],
+        default="No known education record",
+    )
+    signal_df["funding_maturity"] = np.select(
+        [signal_df["funding_rounds"] >= 3, signal_df["funding_rounds"] == 2, signal_df["funding_rounds"] == 1],
+        ["3+ funding rounds", "2 funding rounds", "1 funding round"],
+        default="No funding-round record",
+    )
+    signal_df["exit_probability_pct"] = pd.to_numeric(signal_df["predicted_exit_probability"], errors="coerce") * 100
+    signal_df = signal_df.dropna(subset=["exit_probability_pct"])
+    if signal_df.empty:
+        return pd.DataFrame(columns=cols)
+
+    chart = signal_df.melt(
+        id_vars=["exit_probability_pct", "success_exit", "funding_total_usd", "founder_count"],
+        value_vars=["team_structure", "education_coverage", "funding_maturity"],
+        var_name="dimension",
+        value_name="segment",
+    )
+    chart["dimension"] = chart["dimension"].map(
+        {
+            "team_structure": "Team structure",
+            "education_coverage": "Education coverage",
+            "funding_maturity": "Funding maturity",
+        }
+    )
+    return chart[cols]
+
+
+def split_multi_value(value) -> list[str]:
+    text = str(value).strip()
+    if _is_missing_label(text):
+        return []
+    parts = [part.strip() for part in text.replace("|", ";").replace(",", ";").split(";")]
+    return [part for part in parts if not _is_missing_label(part)]
+
+
+def yc_founder_context(companies: pd.DataFrame) -> pd.DataFrame:
     founders = YC.get("founders", pd.DataFrame()) if YC_READY else pd.DataFrame()
     if founders.empty or "company_slug" not in founders:
         return pd.DataFrame()
 
-    founder_signals = founders.copy()
-    founder_signals["company_slug"] = founder_signals["company_slug"].fillna("").astype(str)
+    context = founders.copy()
+    context["company_slug"] = context["company_slug"].fillna("").astype(str)
     for col in ["founder", "school", "prior_company"]:
-        if col not in founder_signals:
-            founder_signals[col] = ""
-        founder_signals[col] = founder_signals[col].fillna("").astype(str).str.strip()
+        if col not in context:
+            context[col] = ""
+        context[col] = context[col].fillna("").astype(str).str.strip()
 
-    company_signals = founder_signals.groupby("company_slug").agg(
-        has_founder_record=("founder", lambda s: s.ne("").any()),
-        has_school_record=("school", lambda s: s.ne("").any()),
-        has_prior_company_record=("prior_company", lambda s: s.ne("").any()),
-    )
+    return context.merge(companies[["slug"]], left_on="company_slug", right_on="slug", how="inner")
 
-    out = companies[["slug", "radar_tier"]].merge(company_signals, left_on="slug", right_index=True, how="left")
-    for col in ["has_founder_record", "has_school_record", "has_prior_company_record"]:
-        out[col] = out[col].fillna(False).astype(bool)
-    return out
+
+def top_founder_values(companies: pd.DataFrame, column: str, label: str, limit: int = 12) -> pd.DataFrame:
+    context = yc_founder_context(companies)
+    if context.empty or column not in context:
+        return pd.DataFrame(columns=["label", "value", "founders"])
+
+    rows = []
+    for _, row in context.iterrows():
+        founder = str(row.get("founder", "")).strip()
+        for value in split_multi_value(row.get(column, "")):
+            rows.append({"founder": founder, "value": value})
+
+    if not rows:
+        return pd.DataFrame(columns=["label", "value", "founders"])
+
+    values = pd.DataFrame(rows).drop_duplicates()
+    out = values.groupby("value").size().sort_values(ascending=False).head(limit).reset_index(name="founders")
+    out["label"] = label
+    return out[["label", "value", "founders"]]
 
 
 def server(input, output, session):
@@ -493,8 +557,6 @@ def server(input, output, session):
             df = df[df["status"] == input.yc_status()]
         if input.yc_tier() != "All":
             df = df[df["radar_tier"] == input.yc_tier()]
-        if input.yc_hiring():
-            df = df[df["is_hiring"]]
         query = (input.yc_search() or "").strip().lower()
         if query:
             haystack = (
@@ -554,7 +616,11 @@ def server(input, output, session):
             "max_participants": input.ml_max_participants(),
             "observed_funding_span": input.ml_observed_funding_span(),
         }
-        return pd.DataFrame([{feature: values.get(feature, np.nan) for feature in STARTUP_MODEL_FEATURES}])
+        scenario = pd.DataFrame([{feature: values.get(feature, np.nan) for feature in STARTUP_MODEL_FEATURES}])
+        for feature in STARTUP_MODEL_FEATURES:
+            if feature not in {"category_code", "country_code"}:
+                scenario[feature] = pd.to_numeric(scenario[feature], errors="coerce").astype(float)
+        return scenario
 
     @reactive.calc
     def ml_probability() -> float:
@@ -611,7 +677,7 @@ def server(input, output, session):
     @output
     @render.ui
     def yc_opportunity():
-        df = yc_filtered().head(1400)
+        df = yc_filtered()
         if df.empty:
             return ui.p("No YC companies match the current filters.")
         fig = px.scatter(
@@ -692,61 +758,88 @@ def server(input, output, session):
             return ui.p("No YC companies match the current filters.")
         chart = df.copy()
         chart["radar_tier"] = pd.Categorical(chart["radar_tier"], categories=RADAR_TIER_ORDER, ordered=True)
-        chart["hiring_status"] = np.where(chart["is_hiring"], "Hiring", "Not hiring")
-        grouped = chart.groupby(["radar_tier", "hiring_status"], observed=False).size().reset_index(name="companies")
+        grouped = chart.groupby("radar_tier", observed=False).size().reset_index(name="companies")
         grouped = grouped[grouped["companies"] > 0]
         fig = px.bar(
             grouped,
             x="radar_tier",
             y="companies",
-            color="hiring_status",
+            color="radar_tier",
             text="companies",
-            color_discrete_map={"Hiring": YC_ORANGE, "Not hiring": "#cbd5e1"},
-            category_orders={"radar_tier": RADAR_TIER_ORDER, "hiring_status": ["Hiring", "Not hiring"]},
+            color_discrete_map=RADAR_TIER_COLORS,
+            category_orders={"radar_tier": RADAR_TIER_ORDER},
         )
-        fig.update_layout(xaxis_title="", yaxis_title="Companies", barmode="stack")
+        fig.update_layout(xaxis_title="", yaxis_title="Companies", showlegend=False)
         return fig_html(fig, 360)
 
     @output
     @render.ui
-    def yc_founder_school():
+    def yc_sector_share():
+        df = yc_filtered()
+        clean = df[~df["industry"].map(_is_missing_label)].copy()
+        clean = clean[~clean["industry"].astype(str).str.strip().str.lower().isin({"other", "others"})]
+        if clean.empty:
+            return ui.p("No sector data matches the current filters.")
+        chart = clean["industry"].value_counts().head(10).reset_index()
+        chart.columns = ["sector", "companies"]
+        chart["share_pct"] = chart["companies"] / chart["companies"].sum() * 100
+        fig = px.treemap(
+            chart,
+            path=["sector"],
+            values="companies",
+            color="share_pct",
+            color_continuous_scale=["#f8fafc", "#fed7aa", YC_ORANGE],
+            hover_data={"companies": ":,", "share_pct": ":.1f"},
+        )
+        fig.update_traces(texttemplate="<b>%{label}</b><br>%{value:,} companies<br>%{customdata[1]:.1f}%")
+        fig.update_layout(coloraxis_colorbar_title="Share %")
+        return fig_html(fig, 360)
+
+    @output
+    @render.ui
+    def yc_founder_schools():
         df = yc_filtered()
         if df.empty:
             return ui.p("No YC companies match the current filters.")
-        signals = yc_founder_signals(df)
-        if signals.empty:
-            return ui.p("Founder and school records are unavailable for the current data.")
-        chart = signals.melt(
-            id_vars=["slug", "radar_tier"],
-            value_vars=["has_founder_record", "has_school_record", "has_prior_company_record"],
-            var_name="signal",
-            value_name="has_signal",
-        )
-        chart = chart[chart["has_signal"]].copy()
-        if chart.empty:
-            return ui.p("No founder, school, or prior-company signals match the current filters.")
-        chart["signal"] = chart["signal"].map(
-            {
-                "has_founder_record": "Founder record",
-                "has_school_record": "School record",
-                "has_prior_company_record": "Prior-company record",
-            }
-        )
-        chart["radar_tier"] = pd.Categorical(chart["radar_tier"], categories=RADAR_TIER_ORDER, ordered=True)
-        grouped = chart.groupby(["radar_tier", "signal"], observed=False)["slug"].nunique().reset_index(name="companies")
-        grouped = grouped[grouped["companies"] > 0]
+        schools = top_founder_values(df, "school", "School", limit=12)
+        if schools.empty:
+            return ui.p("No founder school records are available for the current filter. The YC source data may be sparse for this field.")
+        chart = schools.copy()
+        chart["display"] = chart["value"].where(chart["value"].str.len() <= 32, chart["value"].str.slice(0, 29) + "...")
         fig = px.bar(
-            grouped,
-            x="radar_tier",
-            y="companies",
-            color="signal",
-            barmode="group",
-            text="companies",
-            color_discrete_map={"Founder record": BLUE, "School record": TEAL, "Prior-company record": ROSE},
-            category_orders={"radar_tier": RADAR_TIER_ORDER, "signal": ["Founder record", "School record", "Prior-company record"]},
+            chart.sort_values("founders"),
+            x="founders",
+            y="display",
+            orientation="h",
+            text="founders",
+            hover_data={"value": True, "founders": ":,"},
+            color_discrete_sequence=[TEAL],
         )
-        fig.update_layout(xaxis_title="", yaxis_title="Companies")
-        return fig_html(fig, 360)
+        fig.update_layout(xaxis_title="Founder records", yaxis_title="")
+        return fig_html(fig, 380)
+
+    @output
+    @render.ui
+    def yc_founder_prior_companies():
+        df = yc_filtered()
+        if df.empty:
+            return ui.p("No YC companies match the current filters.")
+        prior = top_founder_values(df, "prior_company", "Prior company", limit=12)
+        if prior.empty:
+            return ui.p("No founder prior-company records are available for the current filter. The YC source data may be sparse for this field.")
+        chart = prior.copy()
+        chart["display"] = chart["value"].where(chart["value"].str.len() <= 32, chart["value"].str.slice(0, 29) + "...")
+        fig = px.bar(
+            chart.sort_values("founders"),
+            x="founders",
+            y="display",
+            orientation="h",
+            text="founders",
+            hover_data={"value": True, "founders": ":,"},
+            color_discrete_sequence=[BLUE],
+        )
+        fig.update_layout(xaxis_title="Founder records", yaxis_title="")
+        return fig_html(fig, 380)
 
     @output
     @render.ui
@@ -754,7 +847,7 @@ def server(input, output, session):
         df = yc_filtered().copy()
         if df.empty:
             return ui.p("No YC companies match the current filters.")
-        topic = df[(df["topic_x"].fillna(0) != 0) | (df["topic_y"].fillna(0) != 0)].head(1600)
+        topic = df[(df["topic_x"].fillna(0) != 0) | (df["topic_y"].fillna(0) != 0)]
         if topic.empty:
             return ui.p("Topic projection is unavailable for the current data.")
         fig = px.scatter(
@@ -780,19 +873,21 @@ def server(input, output, session):
     @output
     @render.ui
     def si_importance():
-        imp = STARTUP["importance"].head(12).sort_values("importance")
+        imp = STARTUP["importance"].head(12).copy()
         if imp.empty:
             return ui.p("Model importance is unavailable.")
-        fig = px.bar(
+        imp["feature"] = pd.Categorical(imp["feature"], categories=imp.sort_values("importance", ascending=True)["feature"], ordered=True)
+        fig = px.density_heatmap(
             imp,
-            x="importance",
+            x="signal_group",
             y="feature",
-            color="signal_group",
-            orientation="h",
-            text=imp["importance"].map(lambda x: f"{x:.3f}"),
-            color_discrete_map={"Founder/team": TEAL, "Funding maturity": YC_ORANGE, "Market/geography": BLUE, "Company metadata": ROSE},
+            z="importance",
+            histfunc="avg",
+            text_auto=".3f",
+            color_continuous_scale=["#f8fafc", "#fed7aa", YC_ORANGE],
+            hover_data={"importance": ":.3f", "signal_group": True, "feature": True},
         )
-        fig.update_layout(xaxis_title="ROC-AUC drop when shuffled", yaxis_title="")
+        fig.update_layout(xaxis_title="", yaxis_title="", coloraxis_colorbar_title="ROC-AUC drop")
         return fig_html(fig, 420)
 
     @output
@@ -820,25 +915,25 @@ def server(input, output, session):
     @output
     @render.ui
     def si_founder_summary():
-        summary = startup_signal_summary(startup_filtered())
-        if summary.empty:
+        chart = startup_signal_rows(startup_filtered())
+        if chart.empty:
             return ui.p("Founder signal summary is unavailable for the current filters.")
-        fig = px.scatter(
-            summary,
-            x="exit_rate_pct",
+        fig = px.box(
+            chart,
+            x="exit_probability_pct",
             y="segment",
             color="dimension",
-            size="companies",
-            hover_data={"companies": ":,", "median_funding_m": ":.2f", "median_founders": ":.1f"},
+            points=False,
+            hover_data={"success_exit": True, "funding_total_usd": ":,", "founder_count": ":.0f"},
             color_discrete_sequence=[TEAL, YC_ORANGE, BLUE],
         )
-        fig.update_layout(xaxis_title="Exit rate", yaxis_title="")
+        fig.update_layout(xaxis_title="Predicted exit probability", yaxis_title="")
         fig.update_xaxes(ticksuffix="%")
         return fig_html(fig, 440)
 
     @output
     @render.ui
-    def si_sector():
+    def si_sector_chart():
         sector = grouped_startup_summary(startup_filtered(), "category_code").head(24)
         if sector.empty:
             return ui.p("Sector summary is unavailable for the current filters.")

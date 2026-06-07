@@ -154,6 +154,11 @@ Current YC views:
 - Opportunity Quadrant Map
 - YC Batch Pulse Streamgraph
 - Industry x Region Matrix
+- Radar Tier Distribution
+- Sector Share
+- Top Founder Schools
+- Top Prior Companies
+- Topic Projection Map
 - Company Explorer data grid
 
 Key YC filters:
@@ -163,7 +168,6 @@ Key YC filters:
 - region
 - status
 - radar tier
-- hiring only
 - text search over company, industry, region, tags, and one-liner
 
 ## Startup Intelligence Dashboard

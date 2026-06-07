@@ -276,11 +276,53 @@ def _normalize_yc_founders(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
         founder_rows.append(tmp)
 
     if not founder_rows:
-        return pd.DataFrame(columns=["founder", "company", "school", "prior_company", "company_slug"])
+        return _normalize_yc_bookface_founders(frames)
 
     founders = pd.concat(founder_rows, ignore_index=True).replace({"nan": "", "None": ""})
     founders["company_slug"] = _slugify_series(founders["company"])
     return founders.drop_duplicates()
+
+
+def _normalize_yc_bookface_founders(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    founders = frames.get("ycombinator-all-funded-companies-dataset/founders")
+    if founders is None or founders.empty:
+        return pd.DataFrame(columns=["founder", "company", "school", "prior_company", "company_slug"])
+
+    out = pd.DataFrame(index=founders.index)
+    first = founders["first_name"].fillna("").astype(str) if "first_name" in founders else ""
+    last = founders["last_name"].fillna("").astype(str) if "last_name" in founders else ""
+    out["founder"] = (first + " " + last).str.strip()
+    out["company"] = _first_present(founders, ["current_company"], default="")
+    out["company_slug"] = _first_present(founders, ["company_slug"], default="").fillna("").astype(str)
+    out["hnid"] = _first_present(founders, ["hnid"], default="").fillna("").astype(str)
+
+    schools = frames.get("ycombinator-all-funded-companies-dataset/schools")
+    if schools is not None and not schools.empty and {"hnid", "school"}.issubset(schools.columns):
+        school_summary = (
+            schools.assign(hnid=schools["hnid"].fillna("").astype(str), school=schools["school"].fillna("").astype(str).str.strip())
+            .query("school != ''")
+            .groupby("hnid")["school"]
+            .agg(lambda s: ", ".join(sorted(set(s))[:4]))
+        )
+        out = out.merge(school_summary.rename("school"), left_on="hnid", right_index=True, how="left")
+    else:
+        out["school"] = ""
+
+    prior = frames.get("ycombinator-all-funded-companies-dataset/prior_companies")
+    if prior is not None and not prior.empty and {"hnid", "company"}.issubset(prior.columns):
+        prior_summary = (
+            prior.assign(hnid=prior["hnid"].fillna("").astype(str), company=prior["company"].fillna("").astype(str).str.strip())
+            .query("company != ''")
+            .groupby("hnid")["company"]
+            .agg(lambda s: ", ".join(sorted(set(s))[:5]))
+        )
+        out = out.merge(prior_summary.rename("prior_company"), left_on="hnid", right_index=True, how="left")
+    else:
+        out["prior_company"] = ""
+
+    out = out.drop(columns=["hnid"]).fillna("").replace({"nan": "", "None": ""})
+    out = out[out["company_slug"].astype(str).str.len().gt(0) | out["company"].astype(str).str.len().gt(0)]
+    return out[["founder", "company", "school", "prior_company", "company_slug"]].drop_duplicates()
 
 
 def _prepare_yc_features(df: pd.DataFrame) -> pd.DataFrame:

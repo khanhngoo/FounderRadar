@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local environment/config
+.env
+.env.*
+!.env.example
+
+# Local data and generated artifacts
+data/raw/
+data/cache/
+data/processed/
+data/interim/
+*.csv
+*.parquet
+*.feather
+*.sqlite
+*.db
+
+# Notebook/runtime clutter
+.ipynb_checkpoints/
+
+# Browser/test artifacts
+.playwright-mcp/
+playwright-report/
+test-results/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Codex/agent local state
+.agents/
+.codex/

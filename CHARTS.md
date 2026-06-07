@@ -49,7 +49,6 @@ Why it is chosen:
 
 Caveats:
 
-- The current implementation caps displayed rows with `head(1400)`, so very broad filter states may not show every matching company.
 - Industry coloring can become visually busy when many industries are present.
 - The underlying `recognition_score` and `momentum_score` are heuristics, not trained investment predictions.
 
@@ -102,44 +101,83 @@ Caveats:
 
 Implementation:
 
-- Plot type: stacked bar chart.
+- Plot type: bar chart.
 - X-axis: `radar_tier`.
 - Y-axis: company count.
-- Stack color: hiring status.
+- Color: `radar_tier`.
 - Tier order: Watch, Emerging, High Potential, Breakout.
 
 Why it is chosen:
 
 - It gives users an immediate read on the shape of the filtered opportunity pool.
-- Splitting by hiring status shows whether strong radar tiers are also showing current operating momentum.
 - It is a compact complement to the Opportunity Quadrant Map because it summarizes the same filtered population by tier.
 
 Caveats:
 
 - The chart is count-based and does not explain why companies land in a tier.
-- Hiring is a binary signal in the current normalized data, so it does not show job count or hiring velocity.
 
-### Founder / School Signal View
+### Sector Share
 
 Implementation:
 
-- Plot type: grouped bar chart.
-- X-axis: `radar_tier`.
-- Y-axis: company count.
-- Bar groups: founder record, school record, and prior-company record.
-- Founder records are aggregated to company-level flags to avoid overcounting companies with multiple founder rows.
+- Plot type: treemap.
+- Tile size: company count.
+- Tile color: share of the displayed top-10 sector set.
+- Categories: top 10 sectors by company count.
+- Placeholder sectors and Other/Others are excluded.
 
 Why it is chosen:
 
-- It surfaces the founder context that is already normalized in the YC data pipeline.
-- It helps users see whether higher radar tiers have stronger founder metadata coverage.
-- It makes school and prior-company signals visible without making the main Company Explorer table too wide.
+- It gives a compact view of the sector mix in the current filter state.
+- Treemap sizing makes the leading sectors easy to compare without adding a synthetic long-tail bucket.
+- Excluding placeholder sectors keeps missing labels from dominating the sector view.
 
 Caveats:
 
-- Founder, school, and prior-company fields depend on dataset coverage and may be sparse.
-- School and prior-company signals are coverage indicators, not direct quality measures.
-- The view counts companies with available records; it does not count individual founders.
+- The chart shows share of companies, not radar score or outcome quality.
+- Smaller sectors outside the top 10 are intentionally omitted.
+
+### Top Founder Schools
+
+Implementation:
+
+- Plot type: horizontal bar chart.
+- X-axis: founder-record count.
+- Y-axis: school name.
+- Categories: top schools from YC founder records.
+
+Why it is chosen:
+
+- It surfaces education context that is already normalized in the YC data pipeline.
+- It directly answers which schools appear most often in the available YC founder data.
+- It keeps founder background signals visible without making the main Company Explorer table too wide.
+
+Caveats:
+
+- Founder and school fields depend on dataset coverage and may be sparse.
+- The chart counts available founder records, not all YC founders.
+- School frequency is descriptive; it is not a quality measure.
+
+### Top Prior Companies
+
+Implementation:
+
+- Plot type: horizontal bar chart.
+- X-axis: founder-record count.
+- Y-axis: prior company name.
+- Categories: top prior companies from YC founder records.
+
+Why it is chosen:
+
+- It surfaces work-history context that is already normalized in the YC data pipeline.
+- It directly answers which prior companies appear most often in the available YC founder data.
+- It keeps founder background signals visible without making the main Company Explorer table too wide.
+
+Caveats:
+
+- Founder and prior-company fields depend on dataset coverage and may be sparse.
+- The chart counts available founder records, not all YC founders.
+- Prior-company frequency is descriptive; it is not a quality measure.
 
 ### Topic Projection Map
 
@@ -224,17 +262,17 @@ Why these are chosen:
 
 Implementation:
 
-- Plot type: horizontal bar chart.
-- X-axis: permutation importance measured as ROC-AUC drop when shuffled.
+- Plot type: heatmap.
+- X-axis: signal group: founder/team, funding maturity, market/geography, or company metadata.
 - Y-axis: model feature.
-- Color: signal group: founder/team, funding maturity, market/geography, or company metadata.
+- Color: permutation importance measured as ROC-AUC drop when shuffled.
 - Shows top 12 features.
 
 Why it is chosen:
 
 - It makes the RandomForest model more auditable.
-- Grouped colors translate raw model fields into investor-readable signal families.
-- Horizontal bars are effective for ranked feature names.
+- Signal-group columns translate raw model fields into investor-readable families.
+- Cell color and labels make the strongest model signals scannable without losing feature names.
 
 Caveats:
 
@@ -269,24 +307,23 @@ Caveats:
 
 Implementation:
 
-- Plot type: bubble scatter plot.
-- X-axis: exit rate percentage.
+- Plot type: boxplot.
+- X-axis: predicted exit probability percentage.
 - Y-axis: signal segment.
 - Color: dimension: team structure, education coverage, or funding maturity.
-- Bubble size: company count.
-- Hover fields: company count, median funding, and median founders.
+- Each box uses row-level companies from the active Startup Intelligence filters.
 
 Why it is chosen:
 
-- It compares several interpretable startup signal families on the same outcome axis.
-- Bubble size prevents users from treating tiny segments and large segments as equally reliable.
+- It compares the distribution of model-scored exit probability across interpretable signal families.
+- Boxplots show spread and outliers better than a single aggregate exit-rate marker.
 - It is compact enough to support side-by-side reading with sector and funding charts.
 
 Caveats:
 
 - Founder and education data coverage is incomplete.
 - Education signals can introduce dataset and prestige bias.
-- The chart compares observed associations, not causal drivers.
+- The chart uses model-predicted probability distributions, not causal drivers.
 
 ### Sector Risk / Reward
 

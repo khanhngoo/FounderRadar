@@ -26,9 +26,9 @@ The Startup Intelligence page now shares the YC ecosystem dashboard's off-white 
 
 ## Visualization Choices
 
-- **Model Signal Importance Bar** explains which feature groups move the exit model. It makes the ML model less opaque by grouping raw features into investor-readable themes.
+- **Model Signal Importance Heatmap** explains which feature groups move the exit model. It makes the ML model less opaque by grouping raw features into investor-readable themes.
 - **Funding Maturity Ladder** shows exit rate by funding-round stage, with median funding encoded by color. This communicates maturity as a progression rather than isolated categories.
-- **Founder Signal Summary** compares team structure, education coverage, and funding maturity on the same outcome axis. This is more compact and defensible than a complex founder flow diagram.
+- **Founder Signal Summary** compares predicted exit probability distributions across team structure, education coverage, and funding maturity segments. This is more compact and defensible than a complex founder flow diagram.
 - **Sector Risk / Reward Bubble Plot** separates sector scale from exit outcomes and median funding. It helps users distinguish popular sectors from high-outcome sectors.
 - **Geography Ecosystem View** compares country-level company count, exit rate, and median funding. It supports ecosystem comparison without implying geography alone causes outcomes.
 

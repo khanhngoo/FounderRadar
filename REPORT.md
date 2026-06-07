@@ -12,7 +12,7 @@ The project is built around three connected views:
 
 The dashboard is intentionally framed as an exploratory research tool, not as investment advice. This distinction is important because both major scoring systems are derived signals. The YC `radar_score` is a heuristic ranking score, while the Startup Intelligence `predicted_exit_probability` is a machine learning output based on historical data. Both are useful for triage and pattern discovery, but they should support human review rather than replace investor judgment.
 
-The visual style follows the idea of an investor research desk rather than a marketing website. The YC page uses an off-white workspace, graphite text, compact cards, and YC orange as the primary accent. This creates a recognizable connection to Y Combinator while keeping the interface analytical and restrained. The Startup Intelligence and ML sections use a darker research-oriented treatment in charts and signal panels to show that the user has moved from ecosystem browsing into modeling and historical outcome analysis.
+The visual style follows the idea of an investor research desk rather than a marketing website. All dashboard pages use an off-white workspace, graphite text, compact cards, and YC orange as the primary accent. This creates a recognizable connection to Y Combinator while keeping the interface analytical and restrained. Teal, blue, and rose provide secondary signal colors across ecosystem, historical outcome, and model views.
 
 The interface style is deliberately dense but organized. Investors need to scan, compare, filter, and inspect details quickly. For that reason, the project avoids large decorative layouts and focuses on dashboards, filters, chart panels, KPI cards, and company tables. The tables are especially important because aggregate charts alone are not enough for investor workflows; users need to inspect the companies behind a pattern before deciding whether the pattern is meaningful.
 
@@ -64,7 +64,7 @@ The current local load contains **42,751 startup ML rows**, **3,250 success exit
 
 This architecture is appropriate because the dashboard has two different analytical jobs. YC discovery uses current ecosystem and operating-momentum heuristics, while Startup Intelligence uses historical data and supervised learning. Combining both into one data model would blur their meanings. Keeping them separate makes the visualization story more honest and easier to audit.
 
-**Recommendation:** Improve YC founder-context ingestion. The current local pipeline reports zero normalized YC founder rows even though the UI includes a Founder / School Signal View. The project should inspect the YC founder, school, and prior-company tables and adjust `_normalize_yc_founders()` so those records appear when available.
+**Recommendation:** Keep validating YC founder-context ingestion against the local Kaggle files. The UI now includes Top Founder Schools and Top Prior Companies panels, and those panels should remain explicit that founder, school, and prior-company records may be sparse depending on source-data coverage.
 
 ## 3. Design Elements
 
@@ -119,7 +119,7 @@ The technical rigor is strongest in the data-readiness and modeling pipeline. Th
 
 The YC `radar_score` is also documented as a heuristic instead of a trained investment model. This is important technical honesty. The formula combines momentum, under-recognition, and normalized team size, then converts the raw opportunity score into a percentile rank. This makes the result easier to use for visual tiers while avoiding a false claim that the score predicts investment returns.
 
-There are some technical limitations. Data loading and model fitting happen at app import time, which can slow server startup. Plotly is loaded from a CDN, so the dashboard depends on network access for full chart rendering. Some charts cap displayed rows for performance, such as the YC scatterplots and data grids. The RandomForest model is sampled to 12,000 rows for performance, and permutation importance is computed on a capped sample. These are reasonable tradeoffs, but they should be documented so users understand performance and completeness constraints.
+There are some technical limitations. Data loading and model fitting happen at app import time, which can slow server startup. Plotly is loaded from a CDN, so the dashboard depends on network access for full chart rendering. The YC Company Explorer data grid caps displayed rows for performance. The RandomForest model is sampled to 12,000 rows for performance, and permutation importance is computed on a capped sample. These are reasonable tradeoffs, but they should be documented so users understand performance and completeness constraints.
 
 **Recommendation:** Add concise docstrings to the most important pipeline functions, especially `_prepare_yc_features()`, `_fit_startup_exit_model()`, `_load_startup_founder_features()`, and `_add_text_projection()`. The current code is readable, but formal documentation would improve grading against a technical-rigor rubric.
 
@@ -127,7 +127,7 @@ There are some technical limitations. Data loading and model fitting happen at a
 
 Interactivity is central to FounderRadar. The dashboard is designed around user-controlled exploration rather than static reporting.
 
-The YC Ecosystem page supports filters for batch era, industry, region, status, radar tier, hiring-only status, and free-text search across company names, industries, regions, tags, and one-liners. These controls let investors move from broad ecosystem patterns to narrow opportunity lists. For example, a user can filter for recent YC companies in a specific industry, require active hiring, and then inspect high-radar companies in the table.
+The YC Ecosystem page supports filters for batch era, industry, region, status, radar tier, and free-text search across company names, industries, regions, tags, and one-liners. These controls let investors move from broad ecosystem patterns to narrow opportunity lists. For example, a user can filter for recent YC companies in a specific industry and then inspect high-radar companies in the table.
 
 The Startup Intelligence page supports filters for sector, country, minimum predicted exit probability, and free-text search. The probability slider is especially important because it turns the ML output into an interactive thresholding tool. Users can see how the filtered population changes as they raise or lower the score cutoff.
 
@@ -153,7 +153,7 @@ Accessibility could be improved further. The current dashboard relies heavily on
 The project is already coherent as a VC and startup-investor dashboard, but the following improvements would make it stronger:
 
 1. Add methodology notes inside the app for `radar_score`, `success_exit`, and `predicted_exit_probability`.
-2. Fix YC founder-context loading so the Founder / School Signal View is populated when source data supports it.
+2. Keep YC founder-context loading auditable so the founder school and prior-company views populate when source data supports them.
 3. Add CSV export for filtered company tables and model results.
 4. Add a prediction calibration chart to compare predicted probabilities with observed exit rates.
 5. Add a confusion matrix at the current ML probability threshold.
