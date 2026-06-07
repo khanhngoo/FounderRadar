@@ -1,0 +1,7 @@
+.RData
+.Rhistory
+.git
+*.log
+__pycache__/
+.pytest_cache/
+data/raw/**/*.zip
